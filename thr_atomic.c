@@ -41,17 +41,6 @@ int main(int argc, char**argv) {
     return 0;
 }
 
-//don't think we need this actually
-int isPowerOf2(int num){
-    int n = 0;
-    while(pow(2,n) < num){
-        if(pow(2,n) == num){
-            return 1;
-        }
-    }
-    return 0;
-}
-
 void* sumOfSqaureoots(void* parameters){
     sumSquareRootsArgs* params = (sumSquareRootsArgs*)(parameters);
     long squareRootSum = 0;
