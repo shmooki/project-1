@@ -33,7 +33,6 @@ int main(int argc, char**argv) {
     }
 
     //What should this say? I don't think this is the place to do it
-    //move to for loop that called
     printf("Sum: %f",gSum);
 
     //clean up
