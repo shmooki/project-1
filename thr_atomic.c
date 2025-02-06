@@ -20,7 +20,8 @@ int main(int argc, char**argv) {
     pthread_t threads[m]; 
     for(int i = 0; i < m; i++){
         //change this to be dependent on iteration
-        //rename this struct probly
+        //rename this struct probly yes do this
+        //we need proper allocation here!
         sumSquareRootsArgs* parametersCurrent = {(i*(n/m)+1,(i+1)*(n/m))};
         pthread_create(&threads[i],NULL,sumOfSqaureoots,(void *)parametersCurrent);
         
@@ -57,6 +58,9 @@ void* sumOfSqaureoots(void* parameters){
     sem_post(&s);
 }
 
+//this could also be an enum
+//Should params be type int?
+//We need to pass in the tid of the thread for debugging
 typedef struct{
     int start;
     int end;
