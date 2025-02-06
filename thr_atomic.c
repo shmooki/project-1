@@ -9,6 +9,7 @@ pthread_mutex_t lk;
 sem_t s;
 
 int main(int argc, char**argv) {
+    //add pthread error checking
     if(argc != 2){
         printf("Incorrect number of command line arguements");
         return 1;
