@@ -23,8 +23,8 @@ int main(int argc, char**argv) {
         //change this to be dependent on iteration
         //rename this struct probly yes do this
         //we need proper allocation here!
-        sumSquareRootsArgs* parametersCurrent = {(i*(n/m)+1,(i+1)*(n/m))};
-        pthread_create(&threads[i],NULL,sumOfSqaureoots,(void *)parametersCurrent);
+        sumSquareRootsArgs parametersCurrent = {(i*(n/m)+1,(i+1)*(n/m))};
+        pthread_create(&threads[i],NULL,sumOfSqaureRoots,(void *)&parametersCurrent);
         
     }
     //cannot use pthread join here
@@ -32,6 +32,7 @@ int main(int argc, char**argv) {
     //semaphore sync
     for (int i = 0; i < m; i++){
         sem_wait(&s); //check if this is right
+        
     }
 
     //What should this say? I don't think this is the place to do it
@@ -43,7 +44,7 @@ int main(int argc, char**argv) {
     return 0;
 }
 
-void* sumOfSqaureoots(void* parameters){
+void* sumOfSqaureRoots(void* parameters){
     sumSquareRootsArgs* params = (sumSquareRootsArgs*)(parameters);
     long squareRootSum = 0;
     for(int i = params->start; i < params->end; i++){
@@ -55,8 +56,13 @@ void* sumOfSqaureoots(void* parameters){
     gSum = squareRootSum;
     pthread_mutex_unlock(&lk);
 
+    //pthread_t thread_id = pthread_self();
+
+    //NEED A PRINT HERE!!!
+
     //semaphore stuff
     sem_post(&s);
+    //pthread_exit(NULL);
 }
 
 //this could also be an enum
