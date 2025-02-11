@@ -19,8 +19,8 @@ pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
 sem_t s;
 
 /**
- * @brief This struct is used by threads to store the range of integers a thread will
- * caluclate the partial sum of square roots of. 
+ * @brief This struct is used by a thread to store the integer range
+ * from l_bound -> u_bound of square root sums to calculate
  * @struct pthread_sqrt_t
  * @param l_bound integer range lower bound
  * @param u_bound integer range upper bound
@@ -32,34 +32,37 @@ typedef struct{
 } pthread_sqrt_t;
 
 /**
- * @brief Computes the sum of square roots from the lower to upper bound of a pthread_sqrt_t
+ * @brief Computes the partial sum of square roots from the lower to upper bound of a pthread_sqrt_t
  * @param thread_args The pthread_sqrt_t passed during a pthread_create call
  */
 void *calc(void *thread_args){
     // create local pthread_sqrt_t variable received from pthread_create args
-    pthread_sqrt_t *thread_m = (pthread_sqrt_t*)thread_args;
+    pthread_sqrt_t *cur_range = (pthread_sqrt_t*)thread_args;
 
     // initialize local thread partial square root sum
     double lsum = 0;
 
     // calculate sum of square roots from the upper and lower bounds of struct pthread_sqrt_t
-    for(int i = thread_m->l_bound; i <= thread_m->u_bound; i++){
+    for(int i = cur_range->l_bound; i <= cur_range->u_bound; i++){
         lsum += sqrt(i);
     }
 
     /**
      * to prevent race conditions during parallel thread processing,
      * we wrap the global variable gsum with a pthread mutex
+     * for while we modify its value that is shared among threads.
      * this area is known as the 'critical region'
      */
 
     pthread_mutex_lock(&lock);
     gsum += lsum;
-    printf("thr[%d]: %.6f\n", thread_m->tid, lsum);
+
+    // print partial local sum
+    printf("thr[%d]: %.6f\n", cur_range->tid, lsum); 
     pthread_mutex_unlock(&lock);
 
     // clean up, perform semaphore synchronization, and exit thread
-    free(thread_m);
+    free(cur_range);
     sem_post(&s);
     pthread_exit(NULL);
 }
@@ -81,17 +84,17 @@ int main(int argc, char** argv){
     /**
      * create 'm' number of threads to calculate partial square root sums
      * between the determined lower to upper bound integer range
-     * of current thread_m
+     * of current cur
      */
     pthread_t thr[m];
     for(int i = 0; i < m; i++){
-        pthread_sqrt_t *thread_m = malloc(sizeof(pthread_sqrt_t));
-        thread_m->tid = i;
-        thread_m->l_bound = i * (n / m) + 1;
-        thread_m->u_bound = (i + 1) * (n / m);
+        pthread_sqrt_t *cur_range= malloc(sizeof(pthread_sqrt_t));
+        cur_range->tid = i;
+        cur_range->l_bound = i * (n / m) + 1;
+        cur_range->u_bound = (i + 1) * (n / m);
         
         // check if successful thread creation
-        int t = pthread_create(&thr[i], NULL, calc, (void*)thread_m);
+        int t = pthread_create(&thr[i], NULL, calc, (void*)cur_range);
         if(t != 0){
             printf("Error creating thread %d\n", i);
             return 1;
@@ -103,6 +106,7 @@ int main(int argc, char** argv){
         sem_wait(&s);
     }
 
+    // print shared global net square root sum
     printf("sum of square roots: %.6f\n", gsum);
 
     // clean up
