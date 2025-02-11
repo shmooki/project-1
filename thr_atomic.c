@@ -6,7 +6,7 @@
 
 /******************************************************************************
  * Program Name: thr_atomic
- * Authors: Ray Feingold 2804053, Matthew Kovach
+ * Authors: Ray Feingold 2804053, Matthew Kovach 2824267
  * Course: CIS345 Section 50
  * Date: 02/14/2025
  * Description: Utilize parallel processing among 'm' number of threads to calculate
