@@ -43,6 +43,9 @@ void *calc(void *thread_args){
     pthread_sqrt_t *cur_range = (pthread_sqrt_t*)thread_args;
     cur_range->p_sum = 0;
 
+    // calculate the range of indeces of 'primary' threads
+    int active_thread = m / 2;
+
     //printf("\ninside thread %d\n", cur_range->t_id);
     // calculate sum of square roots from the upper and lower bounds of struct pthread_sqrt_t
     for(int i = cur_range->l_bound; i <= cur_range->u_bound; i++){
@@ -51,39 +54,42 @@ void *calc(void *thread_args){
 
     // add partial sum to gsum
     gsum_array[cur_range->t_id] = cur_range->p_sum;
-    // printf("\n%.6f is the sum of thread %d\n", cur_range->p_sum, cur_range->t_id);
     
+    // if(cur_range->t_id % (1 << i) == 0){
     // perform parallel reduction
     for(int i = 0; i < r; i++){
-        if(cur_range->t_id % (1 << i) == 0){
-            int partner_thread_id = cur_range->t_id ^ (1 << (r - i - 1));
-            // printf("\ninside partner thread\n");
-            if (partner_thread_id < m){
-                // wait for partner thread
-                pthread_join(thr[partner_thread_id], NULL);
-                if(partner_thread_id < cur_range->t_id ){
-                    gsum_array[cur_range->t_id] += gsum_array[partner_thread_id];
-                    printf("\nI'm thread %d, my partner is thread %d\n", cur_range->t_id,partner_thread_id);
-                    printf("\nOur sum is %.6f\n", gsum_array[cur_range->t_id]);
-                }
-                // printf("\npsum in gsum in thread %d is %.6f\n", cur_range->t_id, gsum_array[cur_range->t_id]);
+        // printf("\n%.6f is the sum of thread %d\n", cur_range->p_sum, cur_range->t_id);
+        int partner_thread_id;
+        if(cur_range->t_id < active_thread){
+            partner_thread_id = cur_range->t_id ^ (1 << (r - i - 1));
+            pthread_join(thr[partner_thread_id], NULL);
+            printf("\nI'm thread %d, my partner is thread %d\n", cur_range->t_id,partner_thread_id);
+            if(cur_range->t_id < partner_thread_id){
+                gsum_array[cur_range->t_id] += gsum_array[partner_thread_id];
+                m /= 2;
             }
+            else{
+                break;
+            }
+            
+            printf("\nOur sum is %.6f\n", gsum_array[cur_range->t_id]);
+        // printf("\npsum in gsum in thread %d is %.6f\n", cur_range->t_id, gsum_array[cur_range->t_id]);
         } 
         else{ 
             break;
         }
 
         // reduce threads by half
-        m /= 2;
+       
     }
     
-    if(cur_range->t_id == 0){
-        printf("\n length is %d", bound);
-        for(int i = 0; i < bound; i++){
-            printf("\n Thread [%d]: %.6f\n",i,gsum_array[i]);
-        }
+    // if(cur_range->t_id == 0){
+    //     printf("\n length is %d", bound);
+    //     for(int i = 0; i < bound; i++){
+    //         printf("\n Thread [%d]: %.6f\n",i,gsum_array[i]);
+    //     }
         
-    }
+    // }
     // clean up
     free(cur_range);
     pthread_exit(NULL);
@@ -129,11 +135,13 @@ int main(int argc, char** argv){
         }
     }
 
-    // print shared global net square root sum
-    // printf("\nsum of square roots: %.6f\n", gsum_array[0]);
+    //print shared global net square root sum
+    printf("\nsum of square roots: %.6f\n", gsum_array[0]);
 
-    // for(int i = 0; i < bound; i++){
-    //     printf("\nsum in thr[%d] : %.6f\n", i, gsum_array[i]);
-    // }
+    for(int i = 0; i < bound; i++){
+        printf("\nsum in thr[%d] : %.6f\n", i, gsum_array[i]);
+    }
+    free(thr);
+    free(gsum_array);
     return 0;
 }
