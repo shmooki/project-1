@@ -13,8 +13,9 @@
  * the sum of square roots from 1 to 'n'
  *****************************************************************************/
 
-double* gsum;
-int m;
+double* gsum_array;
+pthread_t *thr;
+int m, r, bound;
 sem_t s;
 
 /**
@@ -42,39 +43,47 @@ void *calc(void *thread_args){
     pthread_sqrt_t *cur_range = (pthread_sqrt_t*)thread_args;
     cur_range->p_sum = 0;
 
-    printf("\ninside thread %d\n", cur_range->t_id);
+    //printf("\ninside thread %d\n", cur_range->t_id);
     // calculate sum of square roots from the upper and lower bounds of struct pthread_sqrt_t
     for(int i = cur_range->l_bound; i <= cur_range->u_bound; i++){
         cur_range->p_sum += sqrt(i);
     }
 
     // add partial sum to gsum
-    gsum[cur_range->t_id] = cur_range->p_sum;
+    gsum_array[cur_range->t_id] = cur_range->p_sum;
+    // printf("\n%.6f is the sum of thread %d\n", cur_range->p_sum, cur_range->t_id);
     
-    // compute r = log2(num_threads)
-    int temp = m;
-    int r = 0;
-    while (temp > 1) {
-        temp >>= 1;
-       
-    }
-
     // perform parallel reduction
-    for(int i = m; i > 1; i >>= 1){
-        if(cur_range->t_id == ){
-            int partner_thread_id = cur_range->t_id ^ (1 << (r - step));
-
-            // wait for partner thread
-            pthread_join()
-            cur_range->p_sum +=
-        } else{ 
+    for(int i = 0; i < r; i++){
+        if(cur_range->t_id % (1 << i) == 0){
+            int partner_thread_id = cur_range->t_id ^ (1 << (r - i - 1));
+            // printf("\ninside partner thread\n");
+            if (partner_thread_id < m){
+                // wait for partner thread
+                pthread_join(thr[partner_thread_id], NULL);
+                if(partner_thread_id < cur_range->t_id ){
+                    gsum_array[cur_range->t_id] += gsum_array[partner_thread_id];
+                    printf("\nI'm thread %d, my partner is thread %d\n", cur_range->t_id,partner_thread_id);
+                    printf("\nOur sum is %.6f\n", gsum_array[cur_range->t_id]);
+                }
+                // printf("\npsum in gsum in thread %d is %.6f\n", cur_range->t_id, gsum_array[cur_range->t_id]);
+            }
+        } 
+        else{ 
             break;
         }
 
-        pthread_exit(NULL);
-        r++;
+        // reduce threads by half
+        m /= 2;
     }
     
+    if(cur_range->t_id == 0){
+        printf("\n length is %d", bound);
+        for(int i = 0; i < bound; i++){
+            printf("\n Thread [%d]: %.6f\n",i,gsum_array[i]);
+        }
+        
+    }
     // clean up
     free(cur_range);
     pthread_exit(NULL);
@@ -94,18 +103,24 @@ int main(int argc, char** argv){
     m = atoi(argv[1]);
     int n = atoi(argv[2]);
 
+    // compute r = log2(num_threads)
+    //this could be a while loop
+    for(int i = m ; i > 1; i >>= 1){
+        r++;
+    }
     /**
      * create 'm' number of threads to calculate partial square root sums
      * between the determined lower to upper bound integer range
      * of current cur_range
      */
-    pthread_t thr[m];
-    gsum = malloc(m * sizeof(double));
-    for(int i = m - 1; i >= 0; i--){
+    bound = m;
+    thr = (pthread_t *)malloc(m * sizeof(pthread_t));
+    gsum_array = malloc(m * sizeof(double));
+    for(int i = bound - 1; i >= 0; i--){
         pthread_sqrt_t *cur_range = malloc(sizeof(pthread_sqrt_t));
         cur_range->t_id = i;
-        cur_range->l_bound = i * (n / m) + 1;
-        cur_range->u_bound = (i + 1) * (n / m);
+        cur_range->l_bound = i * (n / bound) + 1;
+        cur_range->u_bound = (i + 1) * (n / bound);
         
         // check if successful thread creation
         if (pthread_create(&thr[i], NULL, calc, (void*)cur_range) != 0) {
@@ -115,7 +130,10 @@ int main(int argc, char** argv){
     }
 
     // print shared global net square root sum
-    printf("sum of square roots: %.6f\n", gsum[0]);
+    // printf("\nsum of square roots: %.6f\n", gsum_array[0]);
 
+    // for(int i = 0; i < bound; i++){
+    //     printf("\nsum in thr[%d] : %.6f\n", i, gsum_array[i]);
+    // }
     return 0;
 }
