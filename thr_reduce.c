@@ -1,24 +1,37 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <pthread.h>
-#include <string.h>
 #include <semaphore.h>
+#include <pthread.h>
+#include <math.h>
 
-long *gArray;
-pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
+/******************************************************************************
+ * Program Name: thr_atomic
+ * Authors: Ray Feingold 2804053, Matthew Kovach
+ * Course: CIS345 Section 50
+ * Date: 02/14/2025
+ * Description: Utilize parallel processing among 'm' number of threads to calculate
+ * the sum of square roots from 1 to 'n'
+ *****************************************************************************/
+
+double* gsum_array;
+pthread_t *thr;
+int m, r, bound;
 sem_t s;
 
 /**
- * @brief This struct is used by threads to store the range of integers a thread will
- * caluclate the partial sum of square roots of. 
+ * @brief This struct is used by a thread to store the integer range
+ * from l_bound -> u_bound of square root sums to calculate
  * @struct pthread_sqrt_t
+ * @param t_id thread id
  * @param l_bound integer range lower bound
  * @param u_bound integer range upper bound
+ * @param p_sum partial square root sum
  */
 typedef struct{
-    int tid; /**< pthread id */
+    int t_id; /**< pthread thread number */
     int l_bound; /**< square root sum lower bound */
     int u_bound; /**< square root sum upper bound */
+    double p_sum; /**< square root partial sum from l_bound -> u_bound */
 } pthread_sqrt_t;
 
 /**
@@ -27,30 +40,52 @@ typedef struct{
  */
 void *calc(void *thread_args){
     // create local pthread_sqrt_t variable received from pthread_create args
-    pthread_sqrt_t *thread_m = (pthread_sqrt_t*)thread_args;
+    pthread_sqrt_t *cur_range = (pthread_sqrt_t*)thread_args;
+    cur_range->p_sum = 0;
 
-    // initialize local thread partial square root sum
-    double lsum = 0;
-
+    //printf("\ninside thread %d\n", cur_range->t_id);
     // calculate sum of square roots from the upper and lower bounds of struct pthread_sqrt_t
-    for(int i = thread_m->l_bound; i <= thread_m->u_bound; i++){
-        lsum += sqrt(i);
+    for(int i = cur_range->l_bound; i <= cur_range->u_bound; i++){
+        cur_range->p_sum += sqrt(i);
     }
 
-    /**
-     * to prevent race conditions during parallel thread processing,
-     * we wrap the global variable gsum with a pthread mutex
-     * this area is known as the 'critical region'
-     */
+    // add partial sum to gsum
+    gsum_array[cur_range->t_id] = cur_range->p_sum;
+    // printf("\n%.6f is the sum of thread %d\n", cur_range->p_sum, cur_range->t_id);
+    
+    // perform parallel reduction
+    for(int i = 0; i < r; i++){
+        if(cur_range->t_id % (1 << i) == 0){
+            int partner_thread_id = cur_range->t_id ^ (1 << (r - i - 1));
+            // printf("\ninside partner thread\n");
+            if (partner_thread_id < m){
+                // wait for partner thread
+                pthread_join(thr[partner_thread_id], NULL);
+                if(partner_thread_id < cur_range->t_id ){
+                    gsum_array[cur_range->t_id] += gsum_array[partner_thread_id];
+                    printf("\nI'm thread %d, my partner is thread %d\n", cur_range->t_id,partner_thread_id);
+                    printf("\nOur sum is %.6f\n", gsum_array[cur_range->t_id]);
+                }
+                // printf("\npsum in gsum in thread %d is %.6f\n", cur_range->t_id, gsum_array[cur_range->t_id]);
+            }
+        } 
+        else{ 
+            break;
+        }
 
-    pthread_mutex_lock(&lock);
-    gArray[thread_m->tid] += lsum;
-    printf("thr[%d]: %.6f\n", thread_m->tid, lsum);
-    pthread_mutex_unlock(&lock);
-
-    // clean up, perform semaphore synchronization, and exit thread
-    free(thread_m);
-    //sem_post(&s);
+        // reduce threads by half
+        m /= 2;
+    }
+    
+    if(cur_range->t_id == 0){
+        printf("\n length is %d", bound);
+        for(int i = 0; i < bound; i++){
+            printf("\n Thread [%d]: %.6f\n",i,gsum_array[i]);
+        }
+        
+    }
+    // clean up
+    free(cur_range);
     pthread_exit(NULL);
 }
 
@@ -61,45 +96,44 @@ int main(int argc, char** argv){
         return 1;
     }
 
-    // initialize semaphore 
-    //sem_init(&s, 0, 0);
+    // initialize semaphore
+    sem_init(&s, 0, 0);
 
     // from command-line args-> 'm' = number of threads, 'n' = integer range upper bound
-    int m = atoi(argv[1]);
+    m = atoi(argv[1]);
     int n = atoi(argv[2]);
 
+    // compute r = log2(num_threads)
+    //this could be a while loop
+    for(int i = m ; i > 1; i >>= 1){
+        r++;
+    }
     /**
      * create 'm' number of threads to calculate partial square root sums
      * between the determined lower to upper bound integer range
-     * of current thread_m
+     * of current cur_range
      */
-    pthread_t thr[m];
-    for(int i = 0; i < m; i++){
-        pthread_sqrt_t *thread_m = malloc(sizeof(pthread_sqrt_t));
-        thread_m->tid = i;
-        thread_m->l_bound = i * (n / m) + 1;
-        thread_m->u_bound = (i + 1) * (n / m);
+    bound = m;
+    thr = (pthread_t *)malloc(m * sizeof(pthread_t));
+    gsum_array = malloc(m * sizeof(double));
+    for(int i = bound - 1; i >= 0; i--){
+        pthread_sqrt_t *cur_range = malloc(sizeof(pthread_sqrt_t));
+        cur_range->t_id = i;
+        cur_range->l_bound = i * (n / bound) + 1;
+        cur_range->u_bound = (i + 1) * (n / bound);
         
         // check if successful thread creation
-        int t = pthread_create(&thr[i], NULL, calc, (void*)thread_m);
-        if(t != 0){
-            printf("Error creating thread %d\n", i);
+        if (pthread_create(&thr[i], NULL, calc, (void*)cur_range) != 0) {
+            printf("\nFailed to create thread");
             return 1;
         }
     }
-    /*
-    // perform semaphore synchronization among threads
-    for(int i = 0; i < m; i++){
-        sem_wait(&s);
-    }
-    
-    */
-    
 
-    //printf("sum of square roots: %.6f\n", gsum);
+    // print shared global net square root sum
+    // printf("\nsum of square roots: %.6f\n", gsum_array[0]);
 
-    // clean up
-    //sem_destroy(&s);
-    pthread_mutex_destroy(&lock);
+    // for(int i = 0; i < bound; i++){
+    //     printf("\nsum in thr[%d] : %.6f\n", i, gsum_array[i]);
+    // }
     return 0;
 }
