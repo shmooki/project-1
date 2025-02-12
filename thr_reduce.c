@@ -102,9 +102,6 @@ int main(int argc, char** argv){
         return 1;
     }
 
-    // initialize semaphore
-    sem_init(&s, 0, 0);
-
     // from command-line args-> 'm' = number of threads, 'n' = integer range upper bound
     m = atoi(argv[1]);
     int n = atoi(argv[2]);
