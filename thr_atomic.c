@@ -106,7 +106,7 @@ int main(int argc, char** argv){
     }
 
     // print shared global net square root sum
-    printf("sum of square roots: %.6f\n", gsum);
+    printf("Sum of square roots: %.6f\n", gsum);
 
     // clean up
     sem_destroy(&s);

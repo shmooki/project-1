@@ -121,12 +121,12 @@ int main(int argc, char** argv){
     int n = atoi(argv[2]);
 
     /**
-     * compute r = log2(m) by bit shifting a temp var 'i' that is equal to 'm'
+     * compute r = log2(m) by bit shifting a temp var 'x' that is equal to 'm'
      * this essentially 'counts' the number of zeroes in the binary value of 'm'
      */
-    int i = m;
-    while(i > 1){
-        i >>= 1;
+    int x = m;
+    while(x > 1){
+        x >>= 1;
         r++;
     }
 
