@@ -1,18 +1,20 @@
 CC = gcc
-CFLAGS = -Wall -g
+CFLAGS = -Wall -g -lpthread
+LDFLAGS = -lm 
 
-TARGET = proj1
+all: thr_reduce thread_atomic
 
-SRC = thr_atomic.c thr_reduce.c
-OBJ = $(SRC:.c=.o)
+thr_reduce: thr_reduce.o
+	$(CC) $(CFLAGS) -o thr_reduce thr_reduce.o $(LDFLAGS)
 
-all: $(TARGET)
+thread_atomic: thread_atomic.o
+	$(CC) $(CFLAGS) -o thr_atomic thr_atomic.o $(LDFLAGS)
 
-$(TARGET): $(OBJ)
-	$(CC) $(CFLAGS) -o $(TARGET) $(OBJ)
+thr_reduce.o: thr_reduce.c
+	$(CC) $(CFLAGS) -c thr_reduce.c
 
-%.o: %.c
-	$(CC) $(CFLAGS) -c $< -o $@
+thread_atomic.o: thr_atomic.c
+	$(CC) $(CFLAGS) -c thr_atomic.c
 
 clean:
-	rm -f $(OBJ) $(TARGET)
+	rm -f thr_reduce thr_atomic thr_reduce.o thr_atomic.o

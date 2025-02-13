@@ -6,7 +6,7 @@
 
 /******************************************************************************
  * Program Name: thr_atomic
- * Authors: Ray Feingold 2804053, Matthew Kovach
+ * Authors: Ray Feingold 2804053, Matthew Kovach 2824267
  * Course: CIS345 Section 50
  * Date: 02/14/2025
  * Description: Utilize parallel processing among 'm' number of threads to calculate
@@ -37,13 +37,13 @@ typedef struct{
  */
 void *calc(void *thread_args){
     // create local pthread_sqrt_t variable received from pthread_create args
-    pthread_sqrt_t *cur_range = (pthread_sqrt_t*)thread_args;
+    pthread_sqrt_t *cur_thread = (pthread_sqrt_t*)thread_args;
 
     // initialize local thread partial square root sum
     double lsum = 0;
 
     // calculate sum of square roots from the upper and lower bounds of struct pthread_sqrt_t
-    for(int i = cur_range->l_bound; i <= cur_range->u_bound; i++){
+    for(int i = cur_thread->l_bound; i <= cur_thread->u_bound; i++){
         lsum += sqrt(i);
     }
 
@@ -58,11 +58,11 @@ void *calc(void *thread_args){
     gsum += lsum;
 
     // print partial local sum
-    printf("thr[%d]: %.6f\n", cur_range->tid, lsum); 
+    printf("thr[%d]: %.6f\n", cur_thread->tid, lsum); 
     pthread_mutex_unlock(&lock);
 
     // clean up, perform semaphore synchronization, and exit thread
-    free(cur_range);
+    free(cur_thread);
     sem_post(&s);
     pthread_exit(NULL);
 }
@@ -88,15 +88,14 @@ int main(int argc, char** argv){
      */
     pthread_t thr[m];
     for(int i = 0; i < m; i++){
-        pthread_sqrt_t *cur_range= malloc(sizeof(pthread_sqrt_t));
-        cur_range->tid = i;
-        cur_range->l_bound = i * (n / m) + 1;
-        cur_range->u_bound = (i + 1) * (n / m);
+        pthread_sqrt_t *cur_thread= malloc(sizeof(pthread_sqrt_t));
+        cur_thread->tid = i;
+        cur_thread->l_bound = i * (n / m) + 1;
+        cur_thread->u_bound = (i + 1) * (n / m);
         
         // check if successful thread creation
-        int t = pthread_create(&thr[i], NULL, calc, (void*)cur_range);
-        if(t != 0){
-            printf("Error creating thread %d\n", i);
+        if (pthread_create(&thr[i], NULL, calc, (void*)cur_thread) != 0) {
+            printf("\nFailed to create thread\nExiting. . .\n");
             return 1;
         }
     }
